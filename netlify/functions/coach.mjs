@@ -12,6 +12,7 @@ export default async (req) => {
   if (req.method !== 'POST') return json({ error: 'Nur POST erlaubt' }, 405);
   const user = await getUser(req);
   if (!user) return json({ error: 'Bitte anmelden' }, 401);
+  if (env('COACH_SERVER') !== 'on') return json({ error: 'Der Coach über diese Seite ist ausgeschaltet. Bitte mit OpenRouter oder eigenem Schlüssel verbinden.' }, 403);
   let p;
   try { p = await req.json(); } catch { return json({ error: 'Ungültige Anfrage' }, 400); }
   const { provider, method = 'POST' } = p;
