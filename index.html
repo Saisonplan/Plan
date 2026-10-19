@@ -1820,7 +1820,7 @@ Du kannst den Plan NUR über die bereitgestellten Funktionen ändern (Einheiten 
 Regeln: Hol dir zuerst mit get_profile und get_week die Fakten, rate keine Indizes. Halte harte Einheiten derselben Sportart nicht an aufeinanderfolgenden Tagen. Bei Krankheit: keine Intensität, lieber streichen. Ändere ohne Rückfrage höchstens eine Woche; bei mehr Wochen oder bei Leistungswerten frag erst nach. Sag nach jeder Änderung in einem Satz, was du gemacht hast. Keine medizinischen Diagnosen; bei Schmerzen oder Krankheit Pause empfehlen und an Ärztin oder Arzt verweisen.
 Heute ist ${iso(new Date())}, aktuelle Planwoche ${weekIdx(new Date())+1}, angezeigt wird Woche ${cur+1}.`;
 /* Anbieter */
-let AI=load(NS+'ai',{prov:'',keys:{},models:{anthropic:'claude-sonnet-5-5',openai:'gpt-4o-mini',gemini:'gemini-2.0-flash'}});if(!AI.keys)AI.keys={};if(!AI.models)AI.models={anthropic:'claude-sonnet-5-5',openai:'gpt-4o-mini',gemini:'gemini-2.0-flash'};
+let AI=load(NS+'ai',{prov:'',keys:{},models:{anthropic:'claude-sonnet-5-5',openai:'gpt-4o-mini',gemini:'gemini-2.5-flash',openrouter:''}});if(!AI.keys)AI.keys={};if(!AI.models)AI.models={anthropic:'claude-sonnet-5-5',openai:'gpt-4o-mini',gemini:'gemini-2.5-flash',openrouter:''};
 let CHAT=[];let SAMPLE=null;let SAMPLE_TOOLS=false;
 async function initCoach(){
   if(window.claude&&typeof window.claude.use==='function'){try{SAMPLE=await window.claude.use('sample')}catch(e){}if(SAMPLE){try{const l=await SAMPLE.limits();SAMPLE_TOOLS=!!(l&&l.tools)}catch(e){}}}
@@ -1840,10 +1840,12 @@ async function askAnthropic(){const key=AI.keys.anthropic;if(!key)throw new Erro
     const uses=j.content.filter(b=>b.type==='tool_use');if(!uses.length)return j.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');
     msgs.push({role:'assistant',content:j.content});const res=[];for(const u of uses)res.push({type:'tool_result',tool_use_id:u.id,content:JSON.stringify(await runTool(u.name,u.input))});msgs.push({role:'user',content:res})}
   return 'Ich habe die Änderungen vorgenommen.'}
-async function askOpenAI(){const key=AI.keys.openai;if(!key)throw new Error('Bitte zuerst einen OpenAI-API-Schlüssel eintragen.');
+async function askOpenAI(){const key=AI.keys.openai;if(!key)throw new Error('Bitte zuerst einen OpenAI-API-Schlüssel eintragen.');return askOAI('https://api.openai.com/v1/chat/completions',key,AI.models.openai,{})}
+async function askOpenRouter(){const key=AI.keys.openrouter;if(!key)throw new Error('Bitte zuerst mit OpenRouter verbinden.');return askOAI('https://openrouter.ai/api/v1/chat/completions',key,AI.models.openrouter||'anthropic/claude-sonnet-4.5',{'HTTP-Referer':location.origin,'X-Title':'Saisonplan'})}
+async function askOAI(url,key,model,extra){
   let msgs=[{role:'system',content:COACH_RULES()}].concat(hist().map(m=>({role:m.r==='u'?'user':'assistant',content:m.x})));const tools=TOOLS.map(t=>({type:'function',function:{name:t.name,description:t.description,parameters:t.schema}}));
-  for(let round=0;round<6;round++){const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+key},body:JSON.stringify({model:AI.models.openai,messages:msgs,tools})});
-    const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('Fehler '+r.status));const m=j.choices[0].message;
+  for(let round=0;round<6;round++){const r=await fetch(url,{method:'POST',headers:Object.assign({'content-type':'application/json','authorization':'Bearer '+key},extra),body:JSON.stringify({model,messages:msgs,tools})});
+    let j={};try{j=await r.json()}catch(e){}if(r.status===402)throw new Error('Dein Guthaben ist aufgebraucht. Bei OpenRouter unter openrouter.ai/settings/credits aufladen.');if(!r.ok)throw new Error((j.error&&j.error.message)||('Fehler '+r.status));const m=j.choices[0].message;
     if(!m.tool_calls||!m.tool_calls.length)return m.content||'';msgs.push(m);
     for(const tc of m.tool_calls){let a={};try{a=JSON.parse(tc.function.arguments||'{}')}catch(e){}msgs.push({role:'tool',tool_call_id:tc.id,content:JSON.stringify(await runTool(tc.function.name,a))})}}
   return 'Ich habe die Änderungen vorgenommen.'}
@@ -1857,7 +1859,7 @@ async function askGemini(){const key=AI.keys.gemini;if(!key)throw new Error('Bit
 async function coachSend(){const inp=$('#coachIn');const text=inp.value.trim();if(!text)return;inp.value='';
   CHAT.push({r:'u',x:text});renderChat();const btn=$('#coachGo');btn.disabled=true;const tmp={r:'a',x:'Denke nach …',tmp:true};CHAT.push(tmp);renderChat();
   try{let ans;const p=coachProv();
-    if(p==='claude-app')ans=await askClaudeApp(text);else if(p==='anthropic')ans=await askAnthropic();else if(p==='openai')ans=await askOpenAI();else if(p==='gemini')ans=await askGemini();else throw new Error('Bitte zuerst einen KI-Anbieter einrichten.');
+    if(p==='claude-app')ans=await askClaudeApp(text);else if(p==='anthropic')ans=await askAnthropic();else if(p==='openai')ans=await askOpenAI();else if(p==='gemini')ans=await askGemini();else if(p==='openrouter')ans=await askOpenRouter();else throw new Error('Bitte zuerst einen KI-Anbieter einrichten.');
     tmp.x=ans||'(keine Antwort)';tmp.tmp=false}
   catch(e){if(e&&['not_granted','sampling_disabled'].includes(e.code)){AI.connected='';save(NS+'ai',AI)}
     tmp.x=(e&&e.code&&AIERR[e.code])||('Das hat nicht geklappt: '+((e&&e.message)||'unbekannter Fehler')+(e&&e.code?' ['+e.code+']':'')+(String(e&&e.message).includes('fetch')?' (Verbindung blockiert? In der Claude-App geht nur Claude.)':''));tmp.err=true;tmp.tmp=false}
@@ -1941,7 +1943,7 @@ async function api(name,opts){const t=await jwt();const r=await fetch(API+name,O
 function reloadState(){S=load(NS+'settings',DEF);if(!S.goals)S.goals=Object.assign({},DEF.goals);if(!Array.isArray(S.extra))S.extra=[];
   STAT=load(NS+'status',{});DONE=load(NS+'done',{});FLEX=load(NS+'flex',{});OVR=load(NS+'ovr',{ops:[]});if(!Array.isArray(OVR.ops))OVR.ops=[];
   try{const v=JSON.parse(localStorage.getItem(NS+'acts')||'[]');ACTS=Array.isArray(v)?v:[]}catch(e){ACTS=[]}
-  AI=load(NS+'ai',{connected:'',keys:{},models:{anthropic:'claude-sonnet-5-5',openai:'gpt-4o-mini',gemini:'gemini-2.0-flash'}});if(!AI.keys)AI.keys={};if(!AI.models)AI.models={anthropic:'claude-sonnet-5-5',openai:'gpt-4o-mini',gemini:'gemini-2.0-flash'}}
+  AI=load(NS+'ai',{connected:'',keys:{},models:{anthropic:'claude-sonnet-5-5',openai:'gpt-4o-mini',gemini:'gemini-2.5-flash',openrouter:''}});if(!AI.keys)AI.keys={};if(!AI.models)AI.models={anthropic:'claude-sonnet-5-5',openai:'gpt-4o-mini',gemini:'gemini-2.5-flash',openrouter:''}}
 /* Cloud-Speicher in Supabase */
 const SYNC_KEYS=['settings','done','flex','status','ovr','acts'];let SQ={},STIMER=null;
 function cloudPush(k){if(!SB||!SESSION)return;const key=String(k).replace(NS,'');if(!SYNC_KEYS.includes(key))return;try{localStorage.setItem(NS+'ts.'+key,String(Date.now()))}catch(e){}SQ[key]=1;clearTimeout(STIMER);STIMER=setTimeout(cloudFlush,1200)}
@@ -1956,14 +1958,60 @@ function setSyncState(t){const el=$('#season');if(!el)return;let b=document.getE
 /* KI-Anfragen laufen über den eigenen Server: der Schlüssel bleibt geheim */
 const _fetch=window.fetch.bind(window);
 window.fetch=async function(u,init){const url=String(u);const prov=url.startsWith('https://api.anthropic.com/')?'anthropic':url.startsWith('https://api.openai.com/')?'openai':url.startsWith('https://generativelanguage.googleapis.com/')?'gemini':null;
-  if(!prov||OFFLINE)return _fetch(u,init);const p=new URL(url);p.searchParams.delete('key');const t=await jwt();
+  if(!prov||OFFLINE||AI.keys[prov]!=='server')return _fetch(u,init);const p=new URL(url);p.searchParams.delete('key');const t=await jwt();
   return _fetch(API+'coach',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+t},body:JSON.stringify({provider:prov,path:p.pathname+p.search,method:(init&&init.method)||'GET',body:init&&init.body?JSON.parse(init.body):null})})};
+/* Coach-Verbindung: OpenRouter (eigenes Konto), eigener API-Schlüssel oder Schlüssel dieser Seite */
+Object.assign(PROVN,{openrouter:'OpenRouter',anthropic:'Claude',openai:'ChatGPT',gemini:'Gemini'});
+const ORFAM={claude:{n:'Claude',re:/^anthropic\/claude-(sonnet-[\d.]+|[\d.]+-sonnet)$/,fb:'anthropic/claude-sonnet-4.5'},
+  chatgpt:{n:'ChatGPT',re:/^openai\/gpt-[\d.]+-mini$/,fb:'openai/gpt-5-mini'},
+  gemini:{n:'Gemini',re:/^google\/gemini-[\d.]+-flash$/,fb:'google/gemini-2.5-flash'}};
+let OR_MODELS=null;
+async function orModels(){if(OR_MODELS)return OR_MODELS;const out={};
+  try{const r=await _fetch('https://openrouter.ai/api/v1/models');const j=await r.json();const list=(j&&j.data)||[];
+    for(const [k,f] of Object.entries(ORFAM)){const c=list.filter(m=>f.re.test(m.id)&&(!m.supported_parameters||m.supported_parameters.includes('tools'))).sort((a,b)=>(b.created||0)-(a.created||0));out[k]=c.length?c[0].id:f.fb}}
+  catch(e){for(const [k,f] of Object.entries(ORFAM))out[k]=f.fb}
+  return OR_MODELS=out}
+const b64url=u8=>btoa(String.fromCharCode(...u8)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+async function orStart(){if(!(window.crypto&&crypto.subtle))throw new Error('Das geht nur über https.');
+  const v=b64url(crypto.getRandomValues(new Uint8Array(32)));const ch=b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v))));
+  try{sessionStorage.setItem('orVerifier',v)}catch(e){}
+  location.href='https://openrouter.ai/auth?'+new URLSearchParams({callback_url:location.origin+location.pathname+'?openrouter=1',code_challenge:ch,code_challenge_method:'S256',key_label:'Saisonplan'})}
+async function orReturn(){const q=new URLSearchParams(location.search);if(!q.get('openrouter'))return;history.replaceState(null,'',location.pathname);
+  const code=q.get('code');let v=null;try{v=sessionStorage.getItem('orVerifier');sessionStorage.removeItem('orVerifier')}catch(e){}
+  if(!code||!v){alertBox('OpenRouter-Verbindung abgebrochen.');return}
+  try{const r=await _fetch('https://openrouter.ai/api/v1/auth/keys',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code,code_verifier:v,code_challenge_method:'S256'})});
+    let j={};try{j=await r.json()}catch(e){}if(!r.ok||!j.key)throw new Error((j.error&&j.error.message)||('Fehler '+r.status));
+    AI.keys.openrouter=j.key;if(!AI.orFam)AI.orFam='claude';const m=await orModels();AI.models.openrouter=m[AI.orFam];AI.connected='openrouter';save(NS+'ai',AI);
+    alertBox('OpenRouter ist verbunden. Dein Coach ist bereit.');openCoach()}
+  catch(e){alertBox('OpenRouter-Verbindung fehlgeschlagen: '+e.message)}}
 function renderConnect(){const box=$('#coachSetup');if(!box)return;
-  if(OFFLINE){box.innerHTML='<p class="connlead">Der Coach braucht ein Konto. Melde dich an, um ihn zu nutzen.</p>';$('#coachChat').hidden=true;$('#coachF').hidden=true;return}
-  const avail=(CFG&&CFG.providers)||[];if(AI.connected&&!avail.includes(AI.connected))AI.connected='';const c=AI.connected;$('#coachChat').hidden=!c;$('#coachF').hidden=!c;
-  if(c){box.innerHTML=`<div class="connbar"><span class="dot"></span><span>Coach: <b>${PROVN[c]}</b></span><button class="linkbtn" id="cDisc" type="button">Wechseln</button></div>`;$('#cDisc').onclick=()=>{AI.connected='';save(NS+'ai',AI);renderConnect()};return}
-  box.innerHTML=`<p class="connlead">Wähle die KI für deinen Coach. Sie läuft im Hintergrund über unseren Server, du brauchst keinen eigenen Schlüssel.</p><div class="connlist">${['anthropic','openai','gemini'].map(p=>`<button class="conn" data-p="${p}" type="button"${avail.includes(p)?'':' disabled'}><b>${{anthropic:'Claude',openai:'ChatGPT',gemini:'Gemini'}[p]}</b><span>${avail.includes(p)?'Verfügbar':'Auf dieser Seite nicht eingerichtet'}</span></button>`).join('')}</div>`;
-  box.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{const p=b.dataset.p;AI.keys[p]='server';if(CFG.models&&CFG.models[p])AI.models[p]=CFG.models[p];AI.connected=p;save(NS+'ai',AI);renderConnect();renderChat()})}
+  const avail=(!OFFLINE&&CFG&&CFG.providers)||[];
+  if(AI.connected==='claude-app')AI.connected='';
+  if(AI.connected&&(!AI.keys[AI.connected]||(AI.keys[AI.connected]==='server'&&!avail.includes(AI.connected))))AI.connected='';
+  const c=AI.connected;$('#coachChat').hidden=!c;$('#coachF').hidden=!c;
+  if(c){const how=c==='openrouter'?'über dein OpenRouter-Konto':AI.keys[c]==='server'?'über diese Seite':'mit deinem Schlüssel';
+    box.innerHTML=`<div class="connbar"><span class="dot"></span><span>Coach: <b>${PROVN[c]}</b> <small>${how}</small></span><button class="linkbtn" id="cDisc" type="button">Trennen</button></div>`+
+      (c==='openrouter'?`<div class="field" style="margin-top:8px"><label for="orFam">KI-Modell</label><select id="orFam">${Object.entries(ORFAM).map(([k,f])=>`<option value="${k}"${(AI.orFam||'claude')===k?' selected':''}>${f.n}</option>`).join('')}</select><small id="orInfo">${esc(AI.models.openrouter||'')} · Guthaben: <a href="https://openrouter.ai/settings/credits" target="_blank" rel="noopener">openrouter.ai</a></small></div>`:'');
+    $('#cDisc').onclick=()=>{if(c==='openrouter'||AI.keys[c]!=='server')AI.keys[c]='';AI.connected='';save(NS+'ai',AI);renderConnect()};
+    const sel=$('#orFam');if(sel)sel.onchange=async()=>{AI.orFam=sel.value;const m=await orModels();AI.models.openrouter=m[AI.orFam];save(NS+'ai',AI);$('#orInfo').firstChild.textContent=AI.models.openrouter+' · Guthaben: '};
+    return}
+  const help={anthropic:'console.anthropic.com → API Keys',openai:'platform.openai.com → API keys',gemini:'aistudio.google.com → Get API key'};
+  box.innerHTML=`<p class="connlead">Verbinde den Coach mit einer KI. Danach kann er deinen Plan anpassen.</p><div class="connlist">
+    <button class="conn" id="cOR" type="button"><b>Mit OpenRouter verbinden</b><span>Empfohlen. Mit deinem eigenen Konto anmelden, danach Claude, ChatGPT oder Gemini wählen. Du zahlst nur, was du nutzt, meist ein paar Cent pro Frage.</span></button>
+    ${avail.map(p=>`<button class="conn" data-s="${p}" type="button"><b>${PROVN[p]} über diese Seite</b><span>Ohne eigenes Konto, mit Tageslimit.</span></button>`).join('')}
+    ${['anthropic','openai','gemini'].map(p=>`<button class="conn" data-p="${p}" type="button"><b>${PROVN[p]} mit eigenem Schlüssel</b><span>Für alle, die schon einen API-Schlüssel haben.</span></button>`).join('')}
+   </div><div id="cForm"></div><div class="toast" id="ctoast" role="status"></div>`;
+  const ok=p=>{AI.connected=p;save(NS+'ai',AI);renderConnect();renderChat()};
+  const tt=(m,col)=>{const t=$('#ctoast');t.style.color=col||'var(--run)';t.textContent=m};
+  $('#cOR').onclick=async()=>{tt('Weiter zu OpenRouter …','var(--muted)');try{await orStart()}catch(e){tt(e.message)}};
+  box.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const p=b.dataset.s;AI.keys[p]='server';if(CFG.models&&CFG.models[p])AI.models[p]=CFG.models[p];ok(p)});
+  box.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{const p=b.dataset.p;const k=AI.keys[p]==='server'?'':(AI.keys[p]||'');
+    $('#cForm').innerHTML=`<div class="form" style="margin-top:10px"><div class="field"><label for="ckey">${PROVN[p]}: API-Schlüssel</label><input id="ckey" type="password" autocomplete="off" value="${esc(k)}" placeholder="hier einfügen"><small>Bekommst du unter ${help[p]}. Kosten nach Verbrauch beim Anbieter. Der Schlüssel bleibt nur in diesem Browser.</small></div>
+     <div class="field"><label for="cmodel">Modell</label><input id="cmodel" value="${esc(AI.models[p]||'')}" autocomplete="off"></div><button class="btn" id="cGo" type="button">Verbinden</button></div>`;
+    $('#cGo').onclick=async()=>{const key=$('#ckey').value.trim();if(!key)return tt('Bitte den Schlüssel einfügen.');AI.keys[p]=key;AI.models[p]=$('#cmodel').value.trim()||AI.models[p];save(NS+'ai',AI);tt('Teste Verbindung …','var(--muted)');
+      try{await testProv(p);ok(p)}catch(e){tt('Verbindung fehlgeschlagen: '+(e.message||e))}};
+    $('#ckey').focus()});
+}
 /* Strava (Garmin, COROS, Wahoo, Polar … laden automatisch zu Strava hoch) */
 let STRAVA={connected:false,last:0};
 async function stravaStatus(){if(OFFLINE||!SESSION)return;try{STRAVA=await api('strava-sync?status=1')}catch(e){STRAVA={connected:false}}}
@@ -2025,9 +2073,9 @@ function showNewPassword(){const h=document.createElement('div');h.id='login';h.
 /* Start */
 let BOOTED=false;
 function bootApp(){syncGM();syncHead();buildWeeks();cur=Math.max(0,Math.min(WEEKS.length-1,weekIdx(new Date())));renderWeek(0);if(!BOOTED){mountCoach();BOOTED=true}setSyncState('gespeichert');if(!S.setup)openWizard()}
-function startOffline(){OFFLINE=true;NS='trv.local.';reloadState();bootApp()}
+function startOffline(){OFFLINE=true;NS='trv.local.';reloadState();bootApp();orReturn()}
 async function startUser(session){SESSION=session;NS='trv.'+session.user.id.slice(0,8)+'.';reloadState();const l=document.getElementById('login');if(l){l.remove();document.body.style.overflow=''}
-  await cloudPull();bootApp();await stravaReturn();await stravaStatus();stravaSync(false);
+  await cloudPull();bootApp();await orReturn();await stravaReturn();await stravaStatus();stravaSync(false);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')stravaSync(false)})}
 (async function main(){
   try{const r=await _fetch(API+'config');if(r.ok)CFG=await r.json()}catch(e){}
