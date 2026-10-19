@@ -2078,15 +2078,21 @@ function showNewPassword(){const h=document.createElement('div');h.id='login';h.
 let BOOTED=false;
 function bootApp(){syncGM();syncHead();buildWeeks();cur=Math.max(0,Math.min(WEEKS.length-1,weekIdx(new Date())));renderWeek(0);if(!BOOTED){mountCoach();BOOTED=true}setSyncState('gespeichert');if(!S.setup)openWizard()}
 function startOffline(){OFFLINE=true;NS='trv.local.';reloadState();bootApp();orReturn()}
-async function startUser(session){SESSION=session;NS='trv.'+session.user.id.slice(0,8)+'.';reloadState();const l=document.getElementById('login');if(l){l.remove();document.body.style.overflow=''}
+let STARTED=false;
+async function startUser(session){if(STARTED)return;STARTED=true;SESSION=session;NS='trv.'+session.user.id.slice(0,8)+'.';reloadState();const l=document.getElementById('login');if(l){l.remove();document.body.style.overflow=''}
   await cloudPull();bootApp();await orReturn();await icuStatus();icuSync(false);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')icuSync(false)})}
 (async function main(){
   try{const r=await _fetch(API+'config');if(r.ok)CFG=await r.json()}catch(e){}
-  if(CFG&&CFG.supabaseUrl&&window.supabase){SB=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}})}
+  if(CFG&&CFG.supabaseUrl&&window.supabase){SB=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'implicit'}})}
   if(!SB){try{if(localStorage.getItem('trv.local.settings')){startOffline();return}}catch(e){}showLogin();return}
-  SB.auth.onAuthStateChange((ev,session)=>{if(ev==='PASSWORD_RECOVERY')showNewPassword();if(ev==='SIGNED_IN'&&session&&!SESSION)startUser(session);if(ev==='SIGNED_OUT'){SESSION=null}});
-  const {data}=await SB.auth.getSession();if(data&&data.session)startUser(data.session);else showLogin();
+  // Fehler aus dem Bestätigungslink anzeigen (z. B. Link abgelaufen)
+  const hp=new URLSearchParams(location.hash.slice(1)+'&'+location.search.slice(1));const linkErr=hp.get('error_description');
+  if(linkErr)history.replaceState(null,'',location.pathname);
+  // Wichtig: im Callback keine weiteren Supabase-Aufrufe direkt ausführen (sonst blockiert die Anmeldung), deshalb setTimeout
+  SB.auth.onAuthStateChange((ev,session)=>{setTimeout(()=>{if(ev==='PASSWORD_RECOVERY')showNewPassword();else if(session&&(ev==='SIGNED_IN'||ev==='INITIAL_SESSION'))startUser(session);if(ev==='SIGNED_OUT'){SESSION=null}},0)});
+  let data=null;try{({data}=await SB.auth.getSession())}catch(e){}
+  if(data&&data.session)startUser(data.session);else if(!STARTED)showLogin(linkErr?('Der Bestätigungslink hat nicht funktioniert: '+linkErr+'. Bitte melde dich an oder registriere dich erneut.'):'');
 })();
 
 </script>
