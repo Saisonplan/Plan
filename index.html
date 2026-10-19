@@ -265,7 +265,7 @@ td.n{font-family:var(--f-display);font-size:16px;font-weight:600;white-space:now
 .tl-w.hotw::after{content:"☀";position:absolute;left:1px;bottom:-14px;font-size:10px;color:var(--heat);background:none;width:auto;height:auto}
 .timeline .tl-row{padding-bottom:12px}
 .toastbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(130px + env(safe-area-inset-bottom,0px));z-index:80;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;max-width:90vw;box-shadow:0 6px 18px rgba(0,0,0,.25)}
-#login .wiz-in{gap:12px}#lup{display:flex;flex-direction:column;gap:12px;margin:6px 0}#lup[hidden]{display:none}#lup .unk{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45}#lup .unk input{width:20px;height:20px;flex:none;margin:1px 0 0;accent-color:var(--accent)}#login a{color:var(--accent)}
+#login .wiz-in{gap:12px}.icusteps{margin:6px 0 12px;padding-left:20px;line-height:1.5}.icusteps li{margin:4px 0}#lup{display:flex;flex-direction:column;gap:12px;margin:6px 0}#lup[hidden]{display:none}#lup .unk{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45}#lup .unk input{width:20px;height:20px;flex:none;margin:1px 0 0;accent-color:var(--accent)}#login a{color:var(--accent)}
 .coachfab{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:35;height:46px;padding:0 18px;border-radius:23px;border:0;background:var(--accent);color:#fff;font-family:var(--f-display);font-size:17px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer}
 .coachp{position:fixed;inset:0;z-index:55;background:rgba(5,12,16,.45);display:flex;align-items:flex-end}
 .coachin{width:100%;max-width:680px;margin:0 auto;max-height:92vh;overflow-y:auto;background:var(--surface);border-radius:18px 18px 0 0;padding:12px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:10px}
@@ -1933,7 +1933,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
 });
 
 /* Start */
-/* ================= Web-Version: Login, Cloud-Speicher, KI über eigenen Server, Strava ================= */
+/* ================= Web-Version: Login, Cloud-Speicher, KI-Coach, intervals.icu ================= */
 let CFG=null,SB=null,SESSION=null,OFFLINE=false;
 const API='/.netlify/functions/';
 async function jwt(){if(!SB)return null;const {data}=await SB.auth.getSession();return data&&data.session?data.session.access_token:null}
@@ -2012,25 +2012,29 @@ function renderConnect(){const box=$('#coachSetup');if(!box)return;
       try{await testProv(p);ok(p)}catch(e){tt('Verbindung fehlgeschlagen: '+(e.message||e))}};
     $('#ckey').focus()});
 }
-/* Strava (Garmin, COROS, Wahoo, Polar … laden automatisch zu Strava hoch) */
-let STRAVA={connected:false,last:0};
-async function stravaStatus(){if(OFFLINE||!SESSION)return;try{STRAVA=await api('strava-sync?status=1')}catch(e){STRAVA={connected:false}}}
-async function stravaSync(force){if(OFFLINE||!SESSION||!STRAVA.connected)return;const k=NS+'stravaLast';let last=0;try{last=+localStorage.getItem(k)||0}catch(e){}
+/* intervals.icu (Garmin, COROS, Wahoo, Polar, Suunto synchronisieren direkt dorthin) */
+let ICU={connected:false,last:0};
+async function icuStatus(){if(OFFLINE||!SESSION)return;try{ICU=await api('icu?status=1')}catch(e){ICU={connected:false}}}
+async function icuSync(force){if(OFFLINE||!SESSION||!ICU.connected)return;const k=NS+'icuLast';let last=0;try{last=+localStorage.getItem(k)||0}catch(e){}
   if(!force&&Date.now()-last<10*60000)return;try{localStorage.setItem(k,String(Date.now()))}catch(e){}
-  try{const r=await api('strava-sync');let added=0;(r.activities||[]).forEach(a=>{if(ACTS.some(b=>b.sid===a.sid))return;const dup=ACTS.find(b=>b.cat===a.cat&&Math.abs(Date.parse(b.t)-Date.parse(a.t))<5*60000);if(dup){Object.assign(dup,{sid:a.sid});return}ACTS.push(a);added++});
-    if(added){ACTS.sort((a,b)=>a.t.localeCompare(b.t));saveActs();renderWeek(0)}const el=$('#stravaInfo');if(el)el.textContent=`Zuletzt abgeglichen: gerade eben${added?` · ${added} neue Aktivitäten`:''}`}catch(e){const el=$('#stravaInfo');if(el)el.textContent='Abgleich fehlgeschlagen: '+e.message}}
-function stravaCard(){if(OFFLINE)return '';return `<div class="card" id="stravaCard"><h2>Strava · Garmin · COROS</h2>
-  <p>Verbinde Strava einmal. Danach werden deine Aktivitäten automatisch übernommen und passende Einheiten abgehakt. Garmin, COROS, Wahoo, Polar und Suunto laden automatisch zu Strava hoch, wenn du das in deren App unter „Verbundene Apps“ / „Partner“ einschaltest.</p>
-  ${STRAVA.connected?`<p><b>Verbunden</b>${STRAVA.athlete?` (Athlet ${esc(String(STRAVA.athlete))})`:''}</p><p class="sumline" id="stravaInfo"></p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="stravaNow" type="button">Jetzt abgleichen</button><button class="btn ghost" id="stravaOff" type="button">Trennen</button></div>`
-   :(CFG&&CFG.stravaClientId?`<button class="btn" id="stravaOn" type="button" style="background:#FC4C02;color:#fff">Mit Strava verbinden</button>`:'<p class="sumline">Strava ist auf dieser Seite noch nicht eingerichtet.</p>')}</div>`}
-function bindStrava(){const on=$('#stravaOn');if(on)on.onclick=()=>{const st=Math.random().toString(36).slice(2);try{sessionStorage.setItem('stravaState',st)}catch(e){}
-    location.href='https://www.strava.com/oauth/authorize?'+new URLSearchParams({client_id:CFG.stravaClientId,redirect_uri:location.origin+'/?strava=1',response_type:'code',approval_prompt:'auto',scope:'activity:read_all',state:st})};
-  const now=$('#stravaNow');if(now)now.onclick=()=>stravaSync(true);
-  const off=$('#stravaOff');if(off)off.onclick=async()=>{try{await api('strava-auth',{method:'DELETE'});STRAVA={connected:false};renderSet()}catch(e){alertBox(e.message)}}}
-async function stravaReturn(){const q=new URLSearchParams(location.search);if(!q.get('strava'))return;history.replaceState(null,'',location.pathname);
-  const code=q.get('code'),st=q.get('state');let ok=false;try{ok=st&&sessionStorage.getItem('stravaState')===st}catch(e){}
-  if(!code||!ok){alertBox('Strava-Verbindung abgebrochen.');return}
-  try{await api('strava-auth',{method:'POST',body:JSON.stringify({code})});await stravaStatus();await stravaSync(true);alertBox('Strava ist verbunden. Neue Aktivitäten werden automatisch übernommen.')}catch(e){alertBox('Strava-Verbindung fehlgeschlagen: '+e.message)}}
+  const info=t=>{const el=$('#icuInfo');if(el)el.textContent=t};
+  try{const r=await api('icu');let added=0;(r.activities||[]).forEach(a=>{if(ACTS.some(b=>b.sid===a.sid))return;const dup=ACTS.find(b=>b.cat===a.cat&&Math.abs(Date.parse(b.t)-Date.parse(a.t))<5*60000);if(dup){Object.assign(dup,{sid:a.sid});return}ACTS.push(a);added++});
+    if(added){ACTS.sort((a,b)=>String(a.t).localeCompare(String(b.t)));saveActs();renderWeek(0)}info(`Zuletzt abgeglichen: gerade eben${added?` · ${added} neue Aktivität${added>1?'en':''}`:''}`)}catch(e){info('Abgleich fehlgeschlagen: '+e.message)}}
+function icuCard(){return `<div class="card" id="icuCard"><h2>Garmin · COROS · Wahoo</h2>
+  ${OFFLINE?'<p>Der automatische Abgleich braucht ein Konto. Melde dich an, um ihn zu nutzen.</p>':ICU.connected
+   ?`<p><b>Mit intervals.icu verbunden</b> (${esc(String(ICU.athlete||''))}). Neue Aktivitäten kommen automatisch und passende Einheiten werden abgehakt.</p><p class="sumline" id="icuInfo"></p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="icuNow" type="button">Jetzt abgleichen</button><button class="btn ghost" id="icuOff" type="button">Trennen</button></div>`
+   :`<p>Deine Uhr lädt über das kostenlose <a href="https://intervals.icu" target="_blank" rel="noopener">intervals.icu</a> automatisch hierher. Einmal einrichten:</p>
+   <ol class="icusteps"><li>Auf intervals.icu kostenlos registrieren und unter <b>Settings → Connections</b> Garmin, COROS, Wahoo, Polar oder Suunto verbinden.</li>
+   <li>Unter <b>Settings → Developer Settings</b> die <b>Athlete ID</b> (z. B. i123456) und den <b>API Key</b> kopieren.</li>
+   <li>Beides hier eintragen.</li></ol>
+   <div class="form"><div class="field"><label for="icuId">Athlete ID</label><input id="icuId" autocomplete="off" placeholder="i123456"></div>
+   <div class="field"><label for="icuKey">API Key</label><input id="icuKey" type="password" autocomplete="off" placeholder="hier einfügen"></div>
+   <button class="btn" id="icuOn" type="button">Verbinden</button><div class="toast" id="icuToast" role="status"></div></div>`}</div>`}
+function bindIcu(){const on=$('#icuOn');if(on)on.onclick=async()=>{const t=$('#icuToast');t.style.color='var(--muted)';t.textContent='Prüfe Verbindung …';
+    try{await api('icu',{method:'POST',body:JSON.stringify({athlete_id:$('#icuId').value,api_key:$('#icuKey').value})});await icuStatus();renderSet();await icuSync(true);alertBox('intervals.icu ist verbunden. Neue Aktivitäten werden automatisch übernommen.')}
+    catch(e){t.style.color='var(--run)';t.textContent=e.message}};
+  const now=$('#icuNow');if(now)now.onclick=()=>icuSync(true);
+  const off=$('#icuOff');if(off)off.onclick=async()=>{try{await api('icu',{method:'DELETE'});ICU={connected:false};renderSet()}catch(e){alertBox(e.message)}}}
 function alertBox(t){const n=document.createElement('div');n.className='toastbar';n.textContent=t;document.body.append(n);setTimeout(()=>n.remove(),5000)}
 /* Konto-Karte: Abmelden, Export, Löschen, Rechtliches */
 function accountCard(){return `<div class="card" id="accCard"><h2>Konto</h2>${OFFLINE?'<p>Du nutzt den Plan ohne Konto. Die Daten bleiben nur in diesem Browser.</p><button class="btn" id="accLogin" type="button">Anmelden oder registrieren</button>'
@@ -2041,9 +2045,9 @@ function accountCard(){return `<div class="card" id="accCard"><h2>Konto</h2>${OF
 function bindAccount(){const li=$('#accLogin');if(li)li.onclick=()=>showLogin();
   const o=$('#accOut');if(o)o.onclick=async()=>{await SB.auth.signOut();location.reload()};
   const ex=$('#accExp');if(ex)ex.onclick=()=>{const d={};SYNC_KEYS.forEach(k=>{try{d[k]=JSON.parse(localStorage.getItem(NS+k)||'null')}catch(e){}});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='saisonplan-daten.json';a.click()};
-  const de=$('#accDel');if(de)de.onclick=()=>{$('#accDelBox').innerHTML='<p><b>Wirklich löschen?</b> Konto, Plan, Häkchen, Strava-Verbindung und alle Daten werden endgültig gelöscht.</p><div style="display:flex;gap:8px"><button class="btn" id="accDelY" type="button" style="background:var(--run)">Endgültig löschen</button><button class="btn ghost" id="accDelN" type="button">Abbrechen</button></div>';
+  const de=$('#accDel');if(de)de.onclick=()=>{$('#accDelBox').innerHTML='<p><b>Wirklich löschen?</b> Konto, Plan, Häkchen, intervals.icu-Verbindung und alle Daten werden endgültig gelöscht.</p><div style="display:flex;gap:8px"><button class="btn" id="accDelY" type="button" style="background:var(--run)">Endgültig löschen</button><button class="btn ghost" id="accDelN" type="button">Abbrechen</button></div>';
     $('#accDelN').onclick=()=>renderSet();$('#accDelY').onclick=async()=>{try{await api('delete-account',{method:'POST'});SYNC_KEYS.concat(['ai','cur']).forEach(k=>{try{localStorage.removeItem(NS+k);localStorage.removeItem(NS+'ts.'+k)}catch(e){}});await SB.auth.signOut();location.reload()}catch(e){alertBox(e.message)}}}}
-const _renderSet=renderSet;renderSet=function(){_renderSet();$('#set').insertAdjacentHTML('afterbegin',accountCard());const g=$('#set').querySelector('.card:nth-child(3)');$('#set').insertAdjacentHTML('beforeend',stravaCard());bindAccount();bindStrava()};
+const _renderSet=renderSet;renderSet=function(){_renderSet();$('#set').insertAdjacentHTML('afterbegin',accountCard());const g=$('#set').querySelector('.card:nth-child(3)');$('#set').insertAdjacentHTML('beforeend',icuCard());bindAccount();bindIcu()};
 /* Login-Bildschirm */
 function showLogin(msg){const old=document.getElementById('login');if(old)old.remove();const h=document.createElement('div');h.id='login';h.className='wiz';
   h.innerHTML=`<div class="wiz-in"><h1>Saisonplan</h1><p>Dein Trainingsplan für Triathlon, Laufen und Rennrad. Melde dich an, damit dein Plan auf allen Geräten gespeichert ist.</p>
@@ -2075,8 +2079,8 @@ let BOOTED=false;
 function bootApp(){syncGM();syncHead();buildWeeks();cur=Math.max(0,Math.min(WEEKS.length-1,weekIdx(new Date())));renderWeek(0);if(!BOOTED){mountCoach();BOOTED=true}setSyncState('gespeichert');if(!S.setup)openWizard()}
 function startOffline(){OFFLINE=true;NS='trv.local.';reloadState();bootApp();orReturn()}
 async function startUser(session){SESSION=session;NS='trv.'+session.user.id.slice(0,8)+'.';reloadState();const l=document.getElementById('login');if(l){l.remove();document.body.style.overflow=''}
-  await cloudPull();bootApp();await orReturn();await stravaReturn();await stravaStatus();stravaSync(false);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')stravaSync(false)})}
+  await cloudPull();bootApp();await orReturn();await icuStatus();icuSync(false);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')icuSync(false)})}
 (async function main(){
   try{const r=await _fetch(API+'config');if(r.ok)CFG=await r.json()}catch(e){}
   if(CFG&&CFG.supabaseUrl&&window.supabase){SB=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}})}
