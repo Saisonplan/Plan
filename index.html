@@ -280,8 +280,8 @@ td.n{font-family:var(--f-display);font-size:16px;font-weight:600;white-space:now
 .coachlogd summary{cursor:pointer;font-weight:600;font-size:14px;margin-bottom:8px}
 /* Tabs */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px max(16px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
-nav.tabs .in{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%;max-width:520px}
-nav.tabs button{height:46px;border:0;border-radius:10px;background:transparent;font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer}
+nav.tabs .in{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;width:100%;max-width:520px;min-width:0}
+nav.tabs button{height:46px;min-width:0;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:0;border-radius:10px;background:transparent;font-family:var(--f-display);font-weight:700;font-size:clamp(12px,4vw,16px);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);cursor:pointer}
 nav.tabs button[aria-selected="true"]{background:var(--surface2);color:var(--ink)}
 </style>
 <style>:root{color-scheme:light}html,body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
@@ -1563,7 +1563,8 @@ const RACES2=[
 const CLIM={AT:[3,6,11,16,21,24,26,26,21,15,8,4],DE:[3,5,10,15,19,22,24,24,20,14,8,4],CH:[3,5,10,14,19,22,25,24,20,14,8,4],IT:[8,10,14,18,23,27,30,30,25,19,13,9],
  ES:[14,16,19,21,24,28,31,31,28,23,18,15],FR:[7,9,13,16,20,24,26,26,22,17,11,8],NL:[6,7,10,14,18,20,23,22,19,15,10,7],BE:[6,7,10,14,18,20,23,22,19,15,10,7],
  GB:[8,8,10,13,16,19,21,21,18,15,11,8],IE:[8,8,10,12,15,18,19,19,17,14,10,8],DK:[2,2,5,11,16,20,22,21,17,11,6,3],SE:[1,1,5,11,17,21,23,22,17,10,5,2],EE:[-1,-1,3,10,16,20,22,21,15,9,3,0],
- CZ:[2,4,9,15,20,23,25,25,20,13,7,3],HU:[3,6,12,17,22,26,28,28,23,16,9,4],GR:[13,14,16,20,25,30,33,33,29,24,19,15],PT:[15,16,19,20,22,26,28,28,27,22,18,15]};
+ CZ:[2,4,9,15,20,23,25,25,20,13,7,3],HU:[3,6,12,17,22,26,28,28,23,16,9,4],GR:[13,14,16,20,25,30,33,33,29,24,19,15],PT:[15,16,19,20,22,26,28,28,27,22,18,15],
+ NO:[0,1,4,9,15,19,21,20,15,9,4,1],PL:[1,3,8,14,20,23,25,25,19,13,7,2],LU:[3,5,10,14,18,21,23,23,19,13,7,4],HR:[10,12,15,19,24,28,31,31,26,21,15,11]};
 /* Bekannte Rennen mit eigenem Mikroklima (Klimamittel am Renntag, ca.) */
 const RTEMP={'IRONMAN Italy Emilia-Romagna Cervia':25,'IRONMAN 70.3 Italy Emilia-Romagna Cervia':25,'IRONMAN 70.3 Jesolo':19,'IRONMAN 70.3 Venice-Jesolo':19,'Challenge Walchsee':23,'Challenge Kaiserwinkl-Walchsee':23,
  'IRONMAN Austria Klagenfurt':25,'Challenge Roth':26,'IRONMAN Frankfurt':25,'IRONMAN Lanzarote':24,'IRONMAN 70.3 Valencia':21,'IRONMAN Barcelona Calella':22,'IRONMAN Vitoria-Gasteiz':27,'IRONMAN 70.3 Zell am See-Kaprun':22,
@@ -1637,7 +1638,23 @@ const RACES=[
  ['IRONMAN Italy Emilia-Romagna Cervia','IT','LD',9,3,6],['IRONMAN 70.3 Italy Emilia-Romagna Cervia','IT','MD',9,3,0],['IRONMAN 70.3 Venice-Jesolo','IT','MD','2027-04-24'],['Challenge Riccione','IT','MD',5,1,0],
  ['IRONMAN Lanzarote','ES','LD','2027-05-15'],['IRONMAN 70.3 Valencia','ES','MD','2027-04-18'],['IRONMAN Barcelona Calella','ES','LD',10,1,0],['IRONMAN Vitoria-Gasteiz','ES','LD',7,2,0],['Valencia Marathon','ES','M',12,1,0],
  ['IRONMAN Copenhagen','DK','LD',8,3,0],['IRONMAN Kalmar','SE','LD',8,3,6],['IRONMAN Tallinn','EE','LD',8,1,6],['Challenge Almere-Amsterdam','NL','LD',9,2,6],['TCS Amsterdam Marathon','NL','M',10,3,0],
- ['TCS London Marathon','GB','M',4,-1,0],['Marathon de Paris','FR','M',4,2,0]];
+ ['TCS London Marathon','GB','M',4,-1,0],['Marathon de Paris','FR','M',4,2,0],
+ ['IRONMAN France Nice','FR','LD',6,-1,0],['IRONMAN Les Sables d\'Olonne-Vendée','FR','LD',6,-1,0],['IRONMAN UK Bolton','GB','LD',7,1,0],['IRONMAN Wales Tenby','GB','LD',9,2,0],
+ ['IRONMAN Portugal Cascais','PT','LD',10,3,6], ['Norseman Xtreme Triathlon','NO','LD',8,1,6],['Embrunman','FR','LD','2027-08-15'],['Celtman Extreme Scottish Triathlon','GB','LD',6,3,6],['Swissman Xtreme Triathlon','CH','LD',6,-1,6],
+ ['Altriman','FR','LD',7,1,6],['Ostseeman Glücksburg','DE','LD',8,1,0],['Challenge Almere-Amsterdam Mitteldistanz','NL','MD',9,2,6],
+ ['IRONMAN 70.3 Pays d\'Aix','FR','MD',5,2,0],['IRONMAN 70.3 Alcúdia-Mallorca','ES','MD',5,2,6],['IRONMAN 70.3 Barcelona','ES','MD',5,3,0],['IRONMAN 70.3 Marbella','ES','MD',4,-1,0],
+ ['IRONMAN 70.3 Cascais','PT','MD',10,3,0],['IRONMAN 70.3 Elsinore','DK','MD',6,3,0],['IRONMAN 70.3 Luxembourg','LU','MD',6,3,0],['IRONMAN 70.3 Les Sables d\'Olonne','FR','MD',6,-1,6],
+ ['IRONMAN 70.3 Pescara','IT','MD',6,2,0],['IRONMAN 70.3 Gdynia','PL','MD',8,1,0],['IRONMAN 70.3 Vichy','FR','MD',8,-1,0],['IRONMAN 70.3 Jönköping','SE','MD',8,-1,6],
+ ['IRONMAN 70.3 Westfriesland','NL','MD',8,3,0],['IRONMAN 70.3 Swansea','GB','MD',7,1,0],['IRONMAN 70.3 Weymouth','GB','MD',9,2,0],['IRONMAN 70.3 Tallinn','EE','MD',8,1,0],
+ ['IRONMAN 70.3 Greece Costa Navarino','GR','MD',10,-1,0],['IRONMAN 70.3 Haugesund','NO','MD',6,1,0],
+ ['Challenge Salou','ES','MD',4,1,0],['Challenge Peguera-Mallorca','ES','MD',10,3,6],['Challenge Gdańsk','PL','MD',7,-1,0],['Challenge Prague','CZ','MD',8,2,6],
+ ['Challenge Barcelona-Maresme','ES','LD',5,1,0],['Challenge Vichy','FR','LD',8,-1,0],['Challenge Lisboa','PT','MD',5,1,6],['Challenge Cesenatico','IT','MD',9,2,0],['Challenge St. Andrews','GB','MD',6,2,0],
+ ['Trans Vorarlberg Triathlon','AT','MD',6,1,0],['Allgäu Triathlon Immenstadt','DE','MD',8,3,0],['Moritzburg Triathlon','DE','MD',6,2,0],
+ ['Trumer Triathlon Obertrum','AT','OD',8,1,0],['Linz Triathlon','AT','OD',7,1,0],['Kitzbühel Triathlon','AT','OD',6,3,0],
+ ['Frankfurt City Triathlon','DE','OD',8,1,0],['Berlin Triathlon','DE','OD',6,-1,0],['Zürich Triathlon','CH','OD',7,2,0],
+ ['Triathlon de Paris','FR','OD',7,1,0],['London Triathlon','GB','OD',7,-1,0],
+ ['Kitzbühel Triathlon Sprint','AT','SP',6,3,6],['Trumer Triathlon Sprint','AT','SP',8,1,6],['Linz Triathlon Sprint','AT','SP',7,1,6],['Berlin Triathlon Sprint','DE','SP',6,-1,6]];
+const CNAME={AT:'Österreich Austria',DE:'Deutschland Germany',CH:'Schweiz Switzerland',IT:'Italien Italy',ES:'Spanien Spain',FR:'Frankreich France',NL:'Niederlande Netherlands Holland',BE:'Belgien Belgium',GB:'Großbritannien England Wales Schottland UK',IE:'Irland Ireland',DK:'Dänemark Denmark',SE:'Schweden Sweden',NO:'Norwegen Norway',EE:'Estland Estonia',PL:'Polen Poland',CZ:'Tschechien Czechia',HU:'Ungarn Hungary',GR:'Griechenland Greece',PT:'Portugal',LU:'Luxemburg Luxembourg',HR:'Kroatien Croatia'};
 const TZC={'Europe/Vienna':'AT','Europe/Berlin':'DE','Europe/Zurich':'CH','Europe/Rome':'IT','Europe/Madrid':'ES','Europe/Copenhagen':'DK','Europe/Stockholm':'SE','Europe/Tallinn':'EE','Europe/Amsterdam':'NL','Europe/London':'GB','Europe/Paris':'FR'};
 const NEAR={AT:['AT','DE','CH','IT'],DE:['DE','AT','CH','NL','DK'],CH:['CH','DE','AT','IT','FR'],IT:['IT','AT','CH','ES'],ES:['ES','IT','FR'],FR:['FR','ES','CH','IT'],NL:['NL','DE','GB'],GB:['GB','NL','FR'],DK:['DK','SE','DE'],SE:['SE','DK','EE'],EE:['EE','SE']};
 function myCountry(){try{const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;if(TZC[tz])return TZC[tz]}catch(e){}const l=(navigator.language||'').split('-')[1];return l&&NEAR[l.toUpperCase()]?l.toUpperCase():'AT'}
@@ -1649,8 +1666,8 @@ function attachSuggest(input,onPick,types){
   const box=document.createElement('div');box.className='sugg';box.hidden=true;input.parentNode.style.position='relative';input.parentNode.append(box);input.setAttribute('autocomplete','off');
   const cc=myCountry(),near=NEAR[cc]||[cc];
   const show=()=>{const q=gnorm(input.value);let list=RALL().filter(r=>!types||types.includes(r[2]));
-    if(q)list=list.filter(r=>gnorm(r[0]).includes(q)||gnorm(RT[r[2]]).includes(q));
-    list=list.map(r=>({r,rank:near.indexOf(r[1])<0?9:near.indexOf(r[1]),dt:raceDate(r)})).filter(x=>x.dt.d).sort((a,b)=>a.rank-b.rank||a.dt.d-b.dt.d).slice(0,8);
+    const words=String(input.value||'').split(/\s+/).map(gnorm).filter(Boolean);if(words.length)list=list.filter(r=>{const hay=gnorm(r[0])+' '+gnorm(RT[r[2]])+' '+gnorm(CNAME[r[1]]||'')+' '+gnorm(r[1]);return words.every(w=>hay.includes(w))});
+    list=list.map(r=>({r,rank:near.indexOf(r[1])<0?9:near.indexOf(r[1]),dt:raceDate(r)})).filter(x=>x.dt.d).sort((a,b)=>a.rank-b.rank||a.dt.d-b.dt.d).slice(0,60);
     if(!list.length){box.hidden=true;return}
     box.innerHTML=list.map((x,k)=>`<button type="button" data-k="${k}"><b>${esc(x.r[0])}</b><span>${RT[x.r[2]]} · ${x.r[1]} · ${x.dt.est?'ca. ':''}${fd(x.dt.d)} ${x.dt.d.getFullYear()}${raceKmHm(x.r)[0]?` · ${raceKmHm(x.r)[0]} km${raceKmHm(x.r)[1]?' · '+raceKmHm(x.r)[1]+' hm':''}`:''}</span></button>`).join('')+'<small>Termine mit „ca.“ sind geschätzt. Bitte auf der Rennseite prüfen.</small>';
     box.hidden=false;box.querySelectorAll('button').forEach(b=>b.onmousedown=e=>{e.preventDefault();const x=list[+b.dataset.k];input.value=x.r[0];box.hidden=true;const kh=raceKmHm(x.r);onPick({name:x.r[0],type:x.r[2],date:iso(x.dt.d),est:x.dt.est,km:kh[0],hm:kh[1]})})};
