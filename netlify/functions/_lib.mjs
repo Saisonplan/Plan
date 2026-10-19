@@ -3,7 +3,7 @@ export const env = (k, d = '') => (process.env[k] || d).trim();
 // Beide Schreibweisen erlaubt (alter und neuer Name bei Supabase)
 export const anonKey = () => env('SUPABASE_ANON_KEY') || env('SUPABASE_PUBLISHABLE_KEY');
 export const serviceKey = () => env('SUPABASE_SERVICE_ROLE_KEY') || env('SUPABASE_SECRET_KEY');
-export const sbUrl = () => env('SUPABASE_URL').toLowerCase().replace(/\/+$/, '');
+export const sbUrl = () => env('SUPABASE_URL').toLowerCase().replace(/[\/.\s]+$/, '');
 export const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
 // Prüft das Login-Token bei Supabase und gibt den Nutzer zurück (oder null)
