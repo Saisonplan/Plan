@@ -22,6 +22,9 @@ export default async (req) => {
   if (!user) return json({ error: 'Bitte anmelden' }, 401);
   const url = new URL(req.url);
 
+  // Geplante Einheiten in den intervals.icu-Kalender schreiben (von dort gehen sie an Garmin, COROS, Wahoo)
+  if (req.method === 'POST' && url.searchParams.get('push')) return push(req, user);
+
   // Verbinden: Athleten-ID und API-Schlüssel prüfen und speichern
   if (req.method === 'POST') {
     let b = {};
@@ -48,6 +51,21 @@ export default async (req) => {
   if (url.searchParams.get('status')) return json({ connected: !!c, athlete: c ? c.athlete_id : null, last: c ? c.last_sync : 0 });
   if (!c) return json({ connected: false, activities: [] });
 
+  // Schlaf- und Erholungsdaten (Garmin → intervals.icu „Wellness“) der letzten 5 Wochen
+  if (url.searchParams.get('wellness')) {
+    const r = await fetch(`${API}/athlete/${c.athlete_id}/wellness?oldest=${day(Date.now() - 35 * 86400000)}&newest=${day(Date.now() + 86400000)}`, { headers: auth(c.api_key) });
+    if (!r.ok) return json({ error: 'intervals.icu Wellness: ' + r.status }, r.status === 401 || r.status === 403 ? 400 : 502);
+    const list = await r.json().catch(() => []);
+    const num = (v) => (typeof v === 'number' && isFinite(v) && v > 0 ? v : null);
+    const days = (Array.isArray(list) ? list : []).map((w) => ({
+      date: String(w.id || w.date || '').slice(0, 10),
+      sleepH: num(w.sleepSecs) ? Math.round(w.sleepSecs / 36) / 100 : null,
+      score: num(w.sleepScore), quality: num(w.sleepQuality),
+      rhr: num(w.restingHR), hrv: num(w.hrv) || num(w.hrvSDNN), readiness: num(w.readiness)
+    })).filter((d) => d.date);
+    return json({ connected: true, days });
+  }
+
   // Erster Abgleich: letzte 60 Tage, danach ab dem letzten Abgleich mit 2 Tagen Überlappung
   const from = c.last_sync ? c.last_sync - 2 * 86400000 : Date.now() - 60 * 86400000;
   const r = await fetch(`${API}/athlete/${c.athlete_id}/activities?oldest=${day(from)}&newest=${day(Date.now() + 86400000)}`, { headers: auth(c.api_key) });
@@ -68,3 +86,41 @@ export default async (req) => {
   await db(`icu_creds?user_id=eq.${user.id}`, { method: 'PATCH', body: { last_sync: Date.now() } });
   return json({ connected: true, activities: acts });
 };
+
+async function push(req, user) {
+  const rows = await db(`icu_creds?user_id=eq.${user.id}&select=*`);
+  const c = rows && rows[0];
+  if (!c) return json({ error: 'intervals.icu ist nicht verbunden.' }, 400);
+  let b = {};
+  try { b = await req.json(); } catch {}
+  const from = String(b.from || '').slice(0, 10), to = String(b.to || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return json({ error: 'Zeitraum fehlt.' }, 400);
+  const list = (Array.isArray(b.workouts) ? b.workouts : []).slice(0, 40).filter((w) => w && /^sp-/.test(w.ext) && /^\d{4}-\d{2}-\d{2}$/.test(w.date));
+  const events = list.map((w) => ({
+    category: 'WORKOUT', start_date_local: w.date + 'T' + (w.time || '07:00') + ':00', type: String(w.type || 'Workout'),
+    name: String(w.name || 'Training').slice(0, 120), description: String(w.description || '').slice(0, 4000),
+    moving_time: Math.max(0, Math.round(+w.secs || 0)), external_id: w.ext
+  }));
+  let saved = 0;
+  if (events.length) {
+    const r = await fetch(`${API}/athlete/${c.athlete_id}/events/bulk?upsert=true`, { method: 'POST', headers: { ...auth(c.api_key), 'content-type': 'application/json' }, body: JSON.stringify(events) });
+    if (r.status === 401 || r.status === 403) return json({ error: 'intervals.icu erlaubt das Schreiben nicht. Bitte API-Schlüssel prüfen.' }, 400);
+    if (!r.ok) return json({ error: 'intervals.icu: ' + r.status + ' ' + (await r.text()).slice(0, 160) }, 502);
+    saved = events.length;
+  }
+  // Veraltete Einheiten dieser Seite im Zeitraum entfernen (z. B. nach Planänderung)
+  let removed = 0;
+  const keep = new Set(events.map((e) => e.external_id));
+  const r2 = await fetch(`${API}/athlete/${c.athlete_id}/events?oldest=${from}&newest=${to}&category=WORKOUT`, { headers: auth(c.api_key) });
+  if (r2.ok) {
+    const old = await r2.json().catch(() => []);
+    for (const e of Array.isArray(old) ? old : []) {
+      if (e && e.id && /^sp-/.test(String(e.external_id || '')) && !keep.has(e.external_id)) {
+        const d = await fetch(`${API}/athlete/${c.athlete_id}/events/${e.id}`, { method: 'DELETE', headers: auth(c.api_key) });
+        if (d.ok) removed++;
+      }
+    }
+  }
+  return json({ ok: true, saved, removed });
+}
+
