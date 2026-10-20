@@ -199,7 +199,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .day.past:not(.today){background:color-mix(in srgb,var(--surface) 85%,var(--bg))}
 .day.today{outline:2.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
 .injnote{border-left-color:var(--run)}
-.adj{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.adjbox{margin:12px 0 4px;padding:10px;border-radius:12px;background:var(--surface2)}.adj{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.adjq{width:100%;font-weight:700;font-size:14px}.adjb.danger{border-color:var(--run);color:var(--run)}
 .adjb{border:1px solid var(--line);background:var(--surface2);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px;cursor:pointer}
 .adjb.why{background:var(--surface);border-color:var(--run);color:var(--run)}
 #injCard .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}#injCard input[type=date],#injCard select{width:100%;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);padding:0 10px;font:inherit}
@@ -1080,7 +1080,7 @@ function matchWeek(w,days){const byId={},extra=[[],[],[],[],[],[],[]],ist={swim:
   days.forEach((list,d)=>{const day=iso(addD(w.start,d));const acts=ACTS.filter(a=>a.day===day&&(a.cat==='gym'||(a.dur||0)>=12*60));const used=new Set();
     acts.forEach(a=>{if(ist[a.cat]!=null)ist[a.cat]+=(a.dur||0)/60;if(km[a.cat]!=null&&a.dist)km[a.cat]+=a.dist});
     const order=list.filter(s=>!s.opt).concat(list.filter(s=>s.opt));
-    order.forEach(s=>{const want=s.sport==='race'||s.cancel?null:(s.aqua?'swim':s.sport);if(!want||want==='rest'||want==='heat')return;let k=-1,best=1e9;acts.forEach((a,ix)=>{if(used.has(ix)||a.cat!==want)return;const diff=Math.abs((a.dur||0)/60-(s.min||0));if(diff<best){best=diff;k=ix}});if(k>=0){used.add(k);byId[s.id]=acts[k]}});
+    order.forEach(s=>{const want=s.sport==='race'||s.cancel?null:(s.xt?'xt':s.sport);if(!want||want==='rest'||want==='heat')return;let k=-1,best=1e9;acts.forEach((a,ix)=>{if(used.has(ix)||a.cat!==want)return;const diff=Math.abs((a.dur||0)/60-(s.min||0));if(diff<best){best=diff;k=ix}});if(k>=0){used.add(k);byId[s.id]=acts[k]}});
     const r=list.find(s=>s.sport==='race');if(r){const ix=acts.findIndex((a,i)=>!used.has(i));if(ix>=0){used.add(ix);byId[r.id]=acts[ix]}}
     acts.forEach((a,ix)=>{if(!used.has(ix))extra[d].push(a)})});
   return {byId,extra,ist,km}}
@@ -1175,7 +1175,7 @@ function renderWeek(dir){
     <p class="flexhint" id="flexHint">Weniger kürzt zuerst Grundlage und lockere Einheiten, unter 85 % fallen die ganz lockeren Fahrten weg. Schlüsseleinheiten bleiben gleich. Mehr verlängert Z2-Fahrten, Long Ride und Long Run.${pct!==100?' <button class="linkbtn" id="flexReset">Zurück auf 100 %</button>':''}</p></div>`}
   </div>`;
   {const hs=days.flat().filter(isHot);if(hs.length){const hf=heatFor(w);h+=`<div class="note heatnote"><span class="sun big">☀</span><div><b>Hitzewoche: ${hs.length} Hitzereiz${hs.length>1?'e':''}</b><br>${hf?`Akklimatisierung für ${esc(hf.race.name)} (erwartet ca. ${hf.h.base} °C). `:''}Markierte Einheiten locker unter Wärme ausführen, Sauna oder Bad direkt nach dem Training. Tipp auf eine Einheit mit ☀ für die Anleitung.</div></div>`}}
-  {const inj=[0,1,2,3,4,5,6].some(d=>injActive(addD(w.start,d)));if(inj){const j=S.injury;h+=`<div class="note injnote"><b>Laufpause aktiv</b>${j.until?' bis '+fd(pd(j.until)):' bis auf Weiteres'}: Läufe werden durch ${{auto:'Aqua-Jogging und Rad',bike:'Rad',aqua:'Aqua-Jogging'}[j.sub||'auto']} ersetzt. <button class="linkbtn" id="injEnd" type="button">Laufpause beenden</button></div>`}}
+  {const inj=[0,1,2,3,4,5,6].some(d=>injActive(addD(w.start,d)));if(inj){const j=S.injury;h+=`<div class="note injnote"><b>Laufpause aktiv</b>${j.until?' bis '+fd(pd(j.until)):' bis auf Weiteres'}: Läufe werden durch ${{auto:'Crosstrainer und Rad',bike:'Rad',xt:'Crosstrainer',swim:'Schwimmen',aqua:'Crosstrainer'}[j.sub||'auto']} ersetzt. <button class="linkbtn" id="injEnd" type="button">Laufpause beenden</button></div>`}}
   if(w.i===0)h+=`<div class="note"><b>Start:</b> Die erste Woche ist zum Einfinden. Fühlt sich der Umfang zu viel an, stell ihn mit dem Schieberegler etwas runter. Werte wie FTP, Schwelle und CSS kannst du jederzeit unter „Werte“ ändern.${MINH>S.hours+0.5?` Hinweis: Unter ca. ${Math.round(MINH)} h pro Woche geht dieser Plan nicht, weil die Schlüsseleinheiten fix bleiben.`:''}</div>`;
   h+='<div class="days">';
   days.forEach((list,d)=>{
@@ -1243,6 +1243,14 @@ function openSheet(id){
    <div class="grab"><span class="handle"></span><button class="closeb" id="closeS" aria-label="Schließen">✕</button></div>
    <div class="sh-head"><div class="sport">${s.label||SP[s.sport].n}${s.key?' · Schlüsseleinheit':''}${s.opt?' · optional':''}${s.inj||s.altOp?' · Ersatz'+(s.orig?' für „'+esc(s.orig)+'“':''):''}</div><h2>${esc(s.kind)}</h2>
    <div class="when">${WD[d]}, ${fd(date)} · ${fmtDur(s.min,s.max)} · Intensität ${s.inten}/5</div></div>`;
+  if(!['race','rest','heat'].includes(s.sport)&&!(CURMT&&CURMT.byId[id])){
+    h+=`<div class="adjbox"><div class="adj" id="adjMain">`;
+    if(s.cancel&&s.opId)h+=`<button class="adjb" data-undo-op="${s.opId}" type="button">↩ Absage zurücknehmen</button>`;
+    else if(s.altOp)h+=`<button class="adjb" data-undo-op="${s.altOp}" type="button">↩ Ersatz zurücknehmen</button>`;
+    if(!s.cancel){h+=`<button class="adjb danger" id="adjCancel" type="button">✕ Absagen</button>`;
+      if(s.sport!=='gym'&&!s.altOp&&s.inten>1)h+=`<button class="adjb" data-alt="easy" type="button">Locker statt hart</button>`;
+      if(s.sport==='run'&&!s.xt&&!s.altOp)h+=`<button class="adjb" data-alt="bike" type="button">Rad statt Lauf</button><button class="adjb" data-alt="xt" type="button">Crosstrainer statt Lauf</button><button class="adjb" data-alt="swim" type="button">Schwimmen statt Lauf</button>`}
+    h+=`</div><div class="adj" id="adjWhy" hidden><span class="adjq">Warum absagen?</span>${['Verletzung','Krank','Keine Zeit','Müde','Sonstiges'].map(r=>`<button class="adjb why" data-why="${r}" type="button">${r}</button>`).join('')}<button class="adjb" id="adjBack" type="button">Zurück</button></div></div>`}
   if(isHot(s))h+=heatGuide(s);
   if(s.target&&s.target.length)h+=`<div class="targets">${s.target.map(t=>`<div class="tg"><small>${esc(t[0])}</small><b>${esc(t[1])}</b></div>`).join('')}</div>`;
   const ga=CURMT&&CURMT.byId[id];
@@ -1257,21 +1265,14 @@ function openSheet(id){
   if(s.cancel)h+=`<div class="note" style="margin-top:14px"><b>Abgesagt:</b> ${esc(s.cancel)}</div>`;
   if(ga)h+=`<button class="donebtn on" disabled>✓ Erledigt (Garmin)</button>`;
   else if(s.sport!=='race'&&s.sport!=='rest')h+=`<button class="donebtn${isDoneM(s)?' on':''}" id="doneB">${isDoneM(s)?'✓ Erledigt':'Als erledigt markieren'}</button>`;
-  if(!['race','rest','heat'].includes(s.sport)&&!ga){
-    h+=`<h3>Anpassen</h3><div class="adj">`;
-    if(s.cancel&&s.opId)h+=`<button class="adjb" data-undo-op="${s.opId}" type="button">Absage zurücknehmen</button>`;
-    else if(s.altOp)h+=`<button class="adjb" data-undo-op="${s.altOp}" type="button">Ersatz zurücknehmen</button>`;
-    if(!s.cancel){h+=`<button class="adjb" id="adjCancel" type="button">Absagen</button>`;
-      if(s.sport!=='gym'&&!s.altOp&&s.inten>1)h+=`<button class="adjb" data-alt="easy" type="button">Locker statt hart</button>`;
-      if(s.sport==='run'&&!s.altOp)h+=`<button class="adjb" data-alt="bike" type="button">Durch Rad ersetzen</button><button class="adjb" data-alt="aqua" type="button">Durch Aqua-Jogging ersetzen</button>`}
-    h+=`</div><div class="adj" id="adjWhy" hidden>${['Verletzung','Krank','Keine Zeit','Müde','Sonstiges'].map(r=>`<button class="adjb why" data-why="${r}" type="button">${r}</button>`).join('')}</div><p class="sumline" style="margin-top:6px">Gilt nur für diese Einheit. Alle Änderungen findest du auch im Coach unter „Änderungen vom Coach“ zum Rückgängigmachen.</p>`}
   h+='</div></div>';
   $('#sheetHost').innerHTML=h;document.body.style.overflow='hidden';
   {const pos=id.split('-').map(Number);const wi=pos[0],dd=pos[1],ix=pos[2];const lab=`${WD[dd]} ${fd(date)}: ${s.label||SP[s.sport].n} „${s.kind}“`;
-   const ac=$('#adjCancel');if(ac)ac.onclick=()=>{$('#adjWhy').hidden=false};
-   document.querySelectorAll('[data-why]').forEach(b=>b.onclick=()=>{logOp({t:'cancel',w:wi,day:dd,idx:ix,reason:b.dataset.why},`Abgesagt (${b.dataset.why}): ${lab}`);closeSheet()});
-   document.querySelectorAll('[data-alt]').forEach(b=>b.onclick=()=>{const to=b.dataset.alt;logOp({t:'alt',w:wi,day:dd,idx:ix,to},`${{easy:'Locker statt hart',bike:'Rad statt Lauf',aqua:'Aqua-Jogging statt Lauf'}[to]}: ${lab}`);closeSheet()});
-   document.querySelectorAll('[data-undo-op]').forEach(b=>b.onclick=()=>{undoOp(+b.dataset.undoOp);closeSheet()})}
+   const ac=$('#adjCancel');if(ac)ac.onclick=()=>{$('#adjMain').hidden=true;$('#adjWhy').hidden=false};
+   const ab=$('#adjBack');if(ab)ab.onclick=()=>{$('#adjMain').hidden=false;$('#adjWhy').hidden=true};
+   document.querySelectorAll('[data-why]').forEach(b=>b.onclick=()=>{logOp({t:'cancel',w:wi,day:dd,idx:ix,reason:b.dataset.why},`Abgesagt (${b.dataset.why}): ${lab}`);closeSheet();toast2('Einheit abgesagt. Rückgängig: Einheit antippen → „Absage zurücknehmen“.')});
+   document.querySelectorAll('[data-alt]').forEach(b=>b.onclick=()=>{const to=b.dataset.alt;logOp({t:'alt',w:wi,day:dd,idx:ix,to},`${{easy:'Locker statt hart',bike:'Rad statt Lauf',xt:'Crosstrainer statt Lauf',swim:'Schwimmen statt Lauf',aqua:'Crosstrainer statt Lauf'}[to]}: ${lab}`);closeSheet();toast2('Einheit ersetzt.')});
+   document.querySelectorAll('[data-undo-op]').forEach(b=>b.onclick=()=>{undoOp(+b.dataset.undoOp);closeSheet();toast2('Zurückgenommen.')})}
   $('#scrim').onclick=closeSheet;$('#closeS').onclick=closeSheet;$('#closeS').focus();
   const db=$('#doneB');if(db)db.onclick=()=>{if(isDoneM(s)){delete DONE[s.uid];delete DONE[id]}else DONE[s.uid]=1;save(NS+'done',DONE);db.classList.toggle('on',isDoneM(s));db.textContent=isDoneM(s)?'✓ Erledigt':'Als erledigt markieren';renderWeek(0)};
   let sy=0;const sh=document.querySelector('.sheet');
@@ -1285,6 +1286,7 @@ function openActSheet(a){if(!a)return;const sp=SP[a.cat]?a.cat:'rest';
    <div class="targets">${[['Dauer',a.dur?durT(a.dur/60):'—'],['Strecke',a.dist?(a.cat==='swim'?Math.round(a.dist*1000)+' m':f1(a.dist)+' km'):'—'],['Ø Puls',a.hr?Math.round(a.hr)+' bpm':'—'],['Ø Leistung',a.pw?Math.round(a.pw)+' W':'—'],['Höhenmeter',a.hm?Math.round(a.hm)+' m':'—']].map(t=>`<div class="tg"><small>${t[0]}</small><b>${t[1]}</b></div>`).join('')}</div>
    <p class="sumline" style="margin-top:10px">Diese Einheit stand an dem Tag nicht im Plan. Sie zählt trotzdem voll zu deinem Wochenumfang.</p></div></div>`;
   document.body.style.overflow='hidden';$('#scrim').onclick=closeSheet;$('#closeS').onclick=closeSheet}
+function toast2(t){const n=document.createElement('div');n.className='toastbar';n.textContent=t;document.body.append(n);setTimeout(()=>n.remove(),3500)}
 function closeSheet(){$('#sheetHost').innerHTML='';document.body.style.overflow=''}
 
 /* Wissen */
@@ -1844,7 +1846,7 @@ function easierOf(c,s){
 function applyOps(w,c,days){
   OVR.ops.filter(o=>o.w===w.i&&o.t&&['move','swap','remove','easy','note','cancel','alt'].includes(o.t)).forEach(o=>{
     if(o.t==='cancel'){const s=days[o.day]&&days[o.day][o.idx];if(s&&s.sport!=='race')days[o.day][o.idx]=Object.assign({},s,{cancel:o.reason||'abgesagt',opId:o.id});return}
-    if(o.t==='alt'){const s=days[o.day]&&days[o.day][o.idx];if(s&&s.sport!=='race'){const e=altOf(c,s,o.to);if(e){e.altOp=o.id;days[o.day][o.idx]=e}}return}
+    if(o.t==='alt'){const s=days[o.day]&&days[o.day][o.idx];if(s&&s.sport!=='race'){const e=altOf(c,s,o.to,dayBike(days[o.day],s));if(e){e.altOp=o.id;days[o.day][o.idx]=e}}return}
     if(o.t==='swap'){if(days[o.a]&&days[o.b]){const t=days[o.a];days[o.a]=days[o.b];days[o.b]=t}}
     else if(o.t==='move'){const s=days[o.from]&&days[o.from][o.idx];if(s&&days[o.to]){days[o.from].splice(o.idx,1);days[o.to].push(s)}}
     else if(o.t==='remove'){if(days[o.day]&&days[o.day][o.idx])days[o.day].splice(o.idx,1)}
@@ -1853,38 +1855,53 @@ function applyOps(w,c,days){
   });return days}
 /* ---------- Laufpause / Verletzung: Läufe werden ersetzt ---------- */
 function injActive(date){const j=S.injury;if(!j||!j.on)return false;const k=iso(date);if(j.from&&k<j.from)return false;if(j.until&&k>j.until)return false;return true}
-function aquaSess(min,kind,parts,inten,key,why){const steps=parts.map(p=>[p[0],p[1]]);
-  return {sport:'swim',aqua:true,label:'Aqua-Jogging',title:'Aqua-Jogging',kind,min,max:min,steps,inten,key:!!key,inj:true,
-    target:[['Dauer',durT(min)],['Gefühl',inten>=4?'hart 8/10, locker 3/10':'locker 3–4/10']],
-    focus:`Ersatz für „${why}“ während der Laufpause. Aqua-Jogging hält die Laufmuskulatur und den Kreislauf fit, ganz ohne Aufprall.`,
-    watch:['Im tiefen Wasser mit Auftriebsgürtel, Füße berühren den Boden nicht','Laufbewegung wie an Land: aufrecht, Knie nach vorne, Arme wie beim Laufen','Der Puls ist im Wasser ca. 10 Schläge niedriger: nach Gefühl steuern','Schmerzt es auch im Wasser: abbrechen'],prog:''}}
-function aquaFor(s){const why=s.kind;let main,min;
+/* Crosstrainer: läuft unter „Laufen“, aber ohne Aufprall */
+function xtSess(min,kind,parts,inten,key,why){
+  return {sport:'run',xt:true,label:'Crosstrainer',title:'Crosstrainer',kind,min,max:min,steps:parts,inten,key:!!key,inj:true,
+    target:[['Dauer',durT(min)],['Gefühl',inten>=4?'hart 8/10, locker 3/10':'locker, Gespräch möglich']],
+    focus:`Ersatz für „${why}“ während der Laufpause. Der Crosstrainer trainiert ähnliche Muskeln wie das Laufen, aber ohne Aufprall.`,
+    watch:['Aufrecht stehen, nicht auf die Griffe stützen','Ganzer Fuß bleibt auf der Pedale, Ferse nicht abheben','Puls ist etwas niedriger als beim Laufen: nach Gefühl steuern','Tut die Verletzung auch hier weh: abbrechen und aufs Rad oder ins Wasser'],prog:''}}
+function xtFor(s){const why=s.kind,runMin=s.min||45;
   const rep=Array.isArray(s.wk)&&s.wk.find(p=>p.rep);
   if((s.key||s.inten>=3)&&!/Long Run/.test(s.kind)){
-    let n=6,on=3,off=1;if(rep){n=rep.rep.n;on=Math.max(1,Math.round(rep.rep.d*(S.thr+(rep.rep.pa[0]+rep.rep.pa[1])/2)/1000/60));off=Math.max(1,Math.round((rep.rep.pz||60)/60))}
-    if(n*(on+off)>50){n=Math.max(3,Math.floor(50/(on+off)))}
-    main=n*(on+off);min=10+main+5;
-    return aquaSess(min,'Intervalle (statt Lauf)',[['Einlaufen',`10' locker`],['Hauptteil',`${n}× ${on}' hart (Gefühl 8/10, schnelle Frequenz), ${off}' locker`],['Auslaufen',`5' locker`]],4,true,why)}
-  min=Math.min(/Long Run/.test(s.kind)?75:45,Math.max(30,s.min||40));
-  return aquaSess(min,/Long Run/.test(s.kind)?'Lang (statt Long Run)':'Locker (statt Lauf)',[['Hauptteil',`${min}' gleichmäßig locker, alle 10' 1' etwas zügiger`]],2,false,why)}
-function bikeFor(c,s){const why=s.kind;const o=(inten,key,kind)=>({inten,key,inj:true,focus:`Ersatz für „${why}“ während der Laufpause.`,watch:['Tritt nichts weh, ist Radfahren meist gut verträglich. Bei Schmerz: abbrechen'],prog:''});
-  if(/Long Run/.test(s.kind)){const m=Math.min(240,Math.max(60,rmin((s.min||90)*1.3)));
+    let n=6,on=3,off=1.5;if(rep){n=rep.rep.n;on=Math.max(1,Math.round(rep.rep.d*(S.thr+(rep.rep.pa[0]+rep.rep.pa[1])/2)/1000/60));off=Math.max(1,Math.round((rep.rep.pz||60)/60))}
+    const main=n*(on+off),min=rmin(Math.max(main+20,runMin));
+    return xtSess(min,'Intervalle (statt Lauf)',[['Einlaufen',`${Math.round((min-main)*0.6)}' locker`],['Hauptteil',`${n}× ${on}' hart (Gefühl 8/10, hohe Frequenz, etwas Widerstand), ${off}' locker`],['Auslaufen',`${Math.round((min-main)*0.4)}' locker`]],4,true,why)}
+  const min=rmin(Math.min(/Long Run/.test(s.kind)?120:75,runMin));
+  return xtSess(min,/Long Run/.test(s.kind)?'Lang (statt Long Run)':'Locker (statt Lauf)',[['Hauptteil',`${min}' gleichmäßig locker, alle 10' 1' etwas zügiger`]],2,false,why)}
+/* Schwimmen statt Laufen: ca. gleiche Zeit */
+function swimFor(s){const why=s.kind,runMin=s.min||45,hard=(s.key||s.inten>=3)&&!/Long Run/.test(s.kind);
+  const min=Math.min(hard?75:90,runMin);const per100=(S.css+(hard?6:12))+12;let rest=Math.max(800,Math.round(min*60/per100)*100-600);
+  const B=hard?[{lab:'Ein',n:1,d:400,w:'locker',dp:16},{lab:'Hauptsatz',n:Math.max(6,Math.round(rest*0.7/100)),d:100,w:'auf CSS',dp:0,r:15,showP:1},{lab:'Pull',n:Math.max(2,Math.round(rest*0.3/100)),d:100,drill:'pull',dp:10,r:15},{lab:'Aus',n:1,d:200,w:'locker',dp:20}]
+    :[{lab:'Ein',n:1,d:400,w:'locker',dp:16},{lab:'Hauptteil',n:Math.max(2,Math.round(rest/400)),d:400,w:'Kraul aerob, ruhig',dp:12,r:20,showP:1},{lab:'Aus',n:1,d:200,w:'locker',dp:20}];
+  return swimSess(hard?'Intensiv (statt Lauf)':/Long Run/.test(s.kind)?'Lang aerob (statt Long Run)':'Locker (statt Lauf)',B,{inten:hard?4:2,key:hard,inj:true,focus:`Ersatz für „${why}“ während der Laufpause.`,watch:['Beim Beinschlag locker bleiben, wenn das verletzte Bein zwickt: mit Pull-Buoy schwimmen'],prog:''})}
+const dayBike=(list,ex)=>(list||[]).filter(x=>x!==ex&&x.sport==='bike'&&!x.opt&&!x.cancel).reduce((a,x)=>a+(x.min||0),0);
+/* Rad-Ersatz: ca. Laufzeit × 1,25 (Rad belastet pro Minute weniger), am Tag zusammen mit dem schon geplanten Rad höchstens 4 h */
+const RUN2BIKE=1.25;
+function bikeFor(c,s,dayB){dayB=dayB||0;const why=s.kind;const runMin=s.min||45;const room=240-dayB;
+  const o=(inten,key)=>({inten,key,inj:true,focus:`Ersatz für „${why}“ (${durT(runMin)} Laufen) während der Laufpause. Rad ca. 1,25-mal so lang, weil es pro Minute weniger belastet.`,watch:['Tritt nichts weh, ist Radfahren meist gut verträglich. Bei Schmerz: abbrechen'],prog:''});
+  if(/Long Run/.test(s.kind)){const m=rmin(Math.min(runMin*RUN2BIKE,room));if(m<45)return null;
     return bikeSess('Grundlage Z2 (statt Long Run)',[{lab:'Einrollen',min:15,spd:SPD.easy,txt:'locker'},{lab:'Hauptteil',min:m-25,spd:SPD.z2,txt:`gleichmäßig Z2 (${W(65,75)})`},{lab:'Ausrollen',min:10,spd:SPD.easy,txt:'locker'}],Object.assign(o(2,false),{target:[['Leistung',W(65,75)]]}))}
-  if(s.key||s.inten>=3){const v=s.inten>=5?{s:1,r:5,on:180,off:180,a:106,b:115}:{s:1,r:3,on:600,off:300,a:92,b:98};const im=Math.round(ivMin(v));const tot=Math.max(im+35,s.min||60);
+  if(s.key||s.inten>=3){const v=s.inten>=5?{s:1,r:5,on:180,off:180,a:106,b:115}:{s:1,r:3,on:600,off:300,a:92,b:98};const im=Math.round(ivMin(v));const tot=rmin(Math.max(im+30,Math.min(runMin*RUN2BIKE,room)));if(tot>room+10)return null;
     return bikeSess(s.inten>=5?'VO2max-Intervalle (statt Lauf)':'Schwelle (statt Lauf)',[{lab:'Einrollen',min:15,spd:SPD.easy,txt:'locker, steigernd'},{lab:'Intervalle',min:im,spd:SPD.int,iv:v,txt:`${ivL(v)} bei ${W(v.a,v.b)}, ${ivP(v)}`},{lab:'Z2',min:tot-25-im,spd:SPD.z2,txt:`Z2 (${W(65,75)})`},{lab:'Ausrollen',min:10,spd:SPD.easy,txt:'locker'}].filter(p=>p.min>0),Object.assign(o(4,true),{target:[['Intervalle',W(v.a,v.b)]]}))}
-  const m=Math.max(30,s.min||40);return bikeSess('Locker (statt Lauf)',[{lab:'Fahrt',min:m,spd:SPD.easy,txt:`locker, unter ${r5(S.ftp*.65)} W, hohe Frequenz`}],o(1,false))}
-function injReplace(c,s){if(s.sport==='gym')return Object.assign({},s,{watch:['Laufpause: keine Sprünge und keine Übung, die am verletzten Bein schmerzt'].concat(s.watch||[])});
+  const m=rmin(Math.min(runMin*RUN2BIKE,room));if(m<30)return null;return bikeSess('Locker (statt Lauf)',[{lab:'Fahrt',min:m,spd:SPD.easy,txt:`locker, unter ${r5(S.ftp*.65)} W, hohe Frequenz`}],o(1,false))}
+function injReplace(c,s,dayB){if(s.sport==='gym')return Object.assign({},s,{watch:['Laufpause: keine Sprünge und keine Übung, die am verletzten Bein schmerzt'].concat(s.watch||[])});
   if(s.sport!=='run')return s;if(/Koppel/.test(s.kind))return Object.assign({},s,{cancel:'Laufpause'});
   const mode=(S.injury&&S.injury.sub)||'auto',hard=(s.key||s.inten>=3)&&!/Long Run/.test(s.kind);
-  const r=mode==='aqua'||(mode==='auto'&&hard)?aquaFor(s):bikeFor(c,s);return Object.assign(r,{inj:true,orig:s.kind})}
-function applyInjury(w,c,days){if(!S.injury||!S.injury.on)return days;return days.map((l,d)=>injActive(addD(w.start,d))?l.map(s=>injReplace(c,s)):l)}
-function altOf(c,s,to){if(to==='easy')return easierOf(c,s);if(to==='bike')return Object.assign(bikeFor(c,s),{orig:s.kind});if(to==='aqua')return Object.assign(aquaFor(s),{orig:s.kind});return null}
+  /* Automatisch: harte Läufe → Crosstrainer-Intervalle; Long Run und lockere Läufe → Rad (lockere nur, wenn an dem Tag noch kein Rad geplant ist), sonst Crosstrainer */
+  let r=null;
+  if(mode==='swim')r=swimFor(s);
+  else if(mode==='xt'||mode==='aqua')r=xtFor(s);
+  else if(mode==='bike'||(mode!=='xt'&&!hard&&(/Long Run/.test(s.kind)?dayB<60:dayB===0)))r=bikeFor(c,s,dayB);
+  if(!r)r=xtFor(s);return Object.assign(r,{inj:true,orig:s.kind})}
+function applyInjury(w,c,days){if(!S.injury||!S.injury.on)return days;return days.map((l,d)=>{if(!injActive(addD(w.start,d)))return l;const out=l.slice();out.forEach((s,k)=>{out[k]=injReplace(c,s,dayBike(out,s))});return out})}
+function altOf(c,s,to,dayB){if(to==='easy')return easierOf(c,s);if(to==='bike'){const r=bikeFor(c,s,dayB);return r?Object.assign(r,{orig:s.kind}):Object.assign(xtFor(s),{orig:s.kind})}if(to==='xt'||to==='aqua')return Object.assign(xtFor(s),{orig:s.kind});if(to==='swim')return Object.assign(swimFor(s),{orig:s.kind});return null}
 function injuryCard(){const j=S.injury||{};const t=iso(new Date());
   return `<div class="card" id="injCard"><h2>Verletzung</h2>
    <label class="tgl"><input type="checkbox" id="injOn"${j.on?' checked':''}><span><b>Laufverletzung / Laufpause</b><small>Alle Läufe im Zeitraum werden ersetzt, damit du trotzdem trainieren kannst. Koppelläufe fallen weg, im Gym keine Sprünge.</small></span></label>
    <div id="injOpts"${j.on?'':' hidden'} style="margin-top:12px"><div class="row2"><div class="field"><label for="injFrom">Ab</label><input type="date" id="injFrom" value="${j.from||t}"></div>
    <div class="field"><label for="injUntil">Bis (leer = bis auf Weiteres)</label><input type="date" id="injUntil" value="${j.until||''}"></div></div>
-   <div class="field"><label for="injSub">Ersatz</label><select id="injSub">${[['auto','Automatisch (Aqua + Rad)'],['bike','Alles aufs Rad'],['aqua','Alles Aqua-Jogging']].map(([v,l])=>`<option value="${v}"${(j.sub||'auto')===v?' selected':''}>${l}</option>`).join('')}</select></div><p class="sumline">Automatisch: harte Läufe werden Aqua-Jogging-Intervalle (laufspezifisch, ohne Aufprall), Long Run und lockere Läufe werden Rad.</p>
+   <div class="field"><label for="injSub">Ersatz</label><select id="injSub">${[['auto','Automatisch (Crosstrainer + Rad)'],['bike','Alles aufs Rad'],['xt','Alles Crosstrainer'],['swim','Alles Schwimmen']].map(([v,l])=>`<option value="${v}"${(j.sub||'auto')===v?' selected':''}>${l}</option>`).join('')}</select></div><p class="sumline">Automatisch: harte Läufe werden Crosstrainer-Intervalle (laufähnlich, ohne Aufprall), Long Run und lockere Läufe werden Rad. Rad ca. 1,25-mal so lang wie der Lauf.</p>
    <p class="sumline">Bei Schmerzen, die länger als ein paar Tage anhalten, bitte ärztlich abklären lassen. Wieder einsteigen: zuerst locker, harte Läufe erst nach einer schmerzfreien Woche.</p></div></div>`}
 function bindInjury(){const on=$('#injOn');if(!on)return;const upd=()=>{S.injury={on:on.checked,from:$('#injFrom').value||iso(new Date()),until:$('#injUntil').value||'',sub:$('#injSub').value||'auto'};save(NS+'settings',S);$('#injOpts').hidden=!on.checked;renderWeek(0);if(typeof watchSoon==='function')watchSoon()};
   on.onchange=upd;['injFrom','injUntil','injSub'].forEach(id=>{const e=$('#'+id);if(e)e.onchange=upd})}
@@ -2202,7 +2219,7 @@ function wkText(s){const L=[];
   return (s.steps||[]).map(x=>`${x[0]}: ${x[1]}`).join('\n')}
 function watchList(){const out=[];const t0=new Date();t0.setHours(0,0,0,0);
   for(let i=0;i<7;i++){const dt=addD(t0,i),wi=weekIdx(dt),w=WEEKS[wi];if(!w)continue;const d=(dt.getDay()+6)%7;const list=sessionsFor(w)[d]||[];
-    list.forEach((s,k)=>{if(s.opt||s.cancel||['rest','race','heat'].includes(s.sport))return;const type=s.aqua?'Swim':{bike:'Ride',run:'Run',swim:'Swim',gym:'WeightTraining'}[s.sport];if(!type)return;
+    list.forEach((s,k)=>{if(s.opt||s.cancel||['rest','race','heat'].includes(s.sport))return;const type=s.xt?'Workout':{bike:'Ride',run:'Run',swim:'Swim',gym:'WeightTraining'}[s.sport];if(!type)return;
       out.push({ext:`sp-${iso(dt)}-${k}-${s.sport}`,date:iso(dt),time:String(6+k).padStart(2,'0')+':00',type,name:`${s.label||s.title}: ${s.kind}`,secs:(s.min||0)*60,
         description:(s.sport==='bike'||s.sport==='run')?wkText(s)+(s.focus?'\n\n'+s.focus:''):wkText(s)})})}
   return out}
