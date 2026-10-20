@@ -1018,6 +1018,7 @@ function sessionsFor(w,pctO){
   if(SPT==='run'&&c.spec&&!c.prep&&['HM','M','K10','K5'].includes(c.tgt))c.prep={type:c.tgt,k:2,name:S.mainName||RT[c.tgt]};
   let days=w.race?raceWeek(c):(SPT==='run'?normalDaysRun(c):SPT==='bike'?normalDaysBike(c):normalDays(c));
   if(SPT!=='tri'){const ok=SPT==='run'?['run','gym','race','rest','heat']:['bike','gym','race','rest','heat'];days=days.map(l=>l.filter(s=>ok.includes(s.sport)||s.opt))}
+  days=applyNoSwim(days);
   days=addHeat(w,c,days);days=heatRaceNote(days,w);
   days=applyInjury(w,c,days);
   days=applyOps(w,c,days);
@@ -1187,7 +1188,7 @@ function renderWeek(dir){
       const isDone=!!(isDoneM(s)||MT.byId[s.id]),isMiss=!isDone&&!s.cancel&&!s.opt&&date<today&&!['rest','race','heat'].includes(s.sport);
       h+=`<button class="s${isHot(s)?' hot':''}${s.sport==='rest'?' restc':''}${s.key&&!s.cancel?' key':''}${s.opt?' opt':''}${isDone?' done':''}${isMiss?' miss':''}${s.cancel?' cancel':''}${s.inj||s.altOp?' inj':''}" style="--c:var(${SP[s.sport].c})" data-id="${s.id}">
         <span class="bar"></span>
-        <span class="t"><b><span class="ic">${s.sport==='heat'?'☀ Hitze':(s.label||SP[s.sport].n)+(s.heat?' · ☀ Hitze':'')}</span>${esc(s.kind)}</b><span>${s.cancel?'Abgesagt: '+esc(s.cancel):isMiss?'Nicht erledigt':esc(shortLine(s))}</span>${isDone?'<em class="stag ok">✓ Erledigt</em>':''}${s.inj||s.altOp?'<em class="stag alt">Ersatz'+(s.orig?' für '+esc(s.orig):'')+'</em>':''}</span>
+        <span class="t"><b><span class="ic">${s.sport==='heat'?'☀ Hitze':(s.label||SP[s.sport].n)+(s.heat?' · ☀ Hitze':'')}</span>${esc(s.kind)}</b><span>${s.cancel?'Abgesagt: '+esc(s.cancel):isMiss?'Nicht erledigt':esc(shortLine(s))}</span>${isDone?'<em class="stag ok">✓ Erledigt</em>':''}${s.inj||s.altOp?'<em class="stag alt">Ersatz'+(s.orig?' für '+esc(s.orig):'')+'</em>':''}${s.moved?'<em class="stag alt">von '+s.moved+' verschoben</em>':''}</span>
         <span class="r"><span class="dur">${s.sport==='rest'?'—':fmtDur(s.min,s.max)}${s.opt?'*':''}</span>${s.km?`<span class="kmv">${s.sport==='swim'?Math.round(s.km*1000).toLocaleString('de-AT')+' m':s.sport==='bike'?'ca. '+Math.round(s.km)+' km':f1(s.km)+' km'}</span>`:''}${MT.byId[s.id]?'<span class="gbadge">Garmin</span>':''}${meter(s.inten)}</span>
       </button>`;
     });
@@ -1853,6 +1854,16 @@ function applyOps(w,c,days){
     else if(o.t==='easy'){const s=days[o.day]&&days[o.day][o.idx];if(s&&s.sport!=='race'){const e=easierOf(c,s);if(e){e.coach=true;days[o.day][o.idx]=e}else days[o.day].splice(o.idx,1)}}
     else if(o.t==='note'){const s=days[o.day]&&days[o.day][o.idx];if(s)s.note=o.text}
   });return days}
+/* ---------- Tage ohne Schwimmen (z. B. Bad geschlossen): Schwimmen auf den nächsten passenden Tag schieben ---------- */
+function applyNoSwim(days){const blk=(S.noSwim||[]).map(Number);if(!blk.length||blk.length>=7)return days;
+  const out=days.map(l=>l.slice());const hasRace=d=>out[d].some(s=>s.sport==='race');
+  for(const d of blk){const sw=out[d].filter(s=>s.sport==='swim');if(!sw.length)continue;out[d]=out[d].filter(s=>s.sport!=='swim');
+    sw.forEach(s=>{let best=-1,score=1e9;for(let t=0;t<7;t++){if(blk.includes(t)||t===d)continue;const dist=Math.abs(t-d);
+        const pl=S.plan||{};const mins=out[t].reduce((x,y)=>x+(y.min||0),0);const sc=dist*10+(out[t].some(x=>x.sport==='swim')?25:0)+out[t].length*3+mins/10+(out[t].some(x=>/Long Run/.test(x.kind||''))?15:0)+((pl.short||[]).map(Number).includes(t)?30:0)+((pl.rest||[]).map(Number).includes(t)?50:0)+(hasRace(t)?100:0)+(t<d?2:0);if(sc<score){score=sc;best=t}}
+      if(best>=0)out[best].push(Object.assign({},s,{moved:WD[d]}))})}
+  return out}
+function noSwimCard(){if((S.sport||'tri')!=='tri')return '';return `<div class="card" id="nsCard"><h2>Schwimmbad</h2><p>An welchen Tagen kannst du nicht schwimmen (z. B. Bad geschlossen)? Schwimmeinheiten an diesen Tagen kommen automatisch auf den nächsten passenden Tag.</p>${dayBoxes('ns',S.noSwim||[])}</div>`}
+function bindNoSwim(){document.querySelectorAll('input[name="ns"]').forEach(x=>x.onchange=()=>{S.noSwim=boxVals('ns');save(NS+'settings',S);renderWeek(0);if(typeof watchSoon==='function')watchSoon()})}
 /* ---------- Laufpause / Verletzung: Läufe werden ersetzt ---------- */
 function injActive(date){const j=S.injury;if(!j||!j.on)return false;const k=iso(date);if(j.from&&k<j.from)return false;if(j.until&&k>j.until)return false;return true}
 /* Crosstrainer: läuft unter „Laufen“, aber ohne Aufprall */
@@ -2252,7 +2263,7 @@ function bindAccount(){const li=$('#accLogin');if(li)li.onclick=()=>showLogin();
   const ex=$('#accExp');if(ex)ex.onclick=()=>{const d={};SYNC_KEYS.forEach(k=>{try{d[k]=JSON.parse(localStorage.getItem(NS+k)||'null')}catch(e){}});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='saisonplan-daten.json';a.click()};
   const de=$('#accDel');if(de)de.onclick=()=>{$('#accDelBox').innerHTML='<p><b>Wirklich löschen?</b> Konto, Plan, Häkchen, intervals.icu-Verbindung und alle Daten werden endgültig gelöscht.</p><div style="display:flex;gap:8px"><button class="btn" id="accDelY" type="button" style="background:var(--run)">Endgültig löschen</button><button class="btn ghost" id="accDelN" type="button">Abbrechen</button></div>';
     $('#accDelN').onclick=()=>renderSet();$('#accDelY').onclick=async()=>{try{await api('delete-account',{method:'POST'});SYNC_KEYS.concat(['ai','cur']).forEach(k=>{try{localStorage.removeItem(NS+k);localStorage.removeItem(NS+'ts.'+k)}catch(e){}});await SB.auth.signOut();location.reload()}catch(e){alertBox(e.message)}}}}
-const _renderSet=renderSet;renderSet=function(){_renderSet();$('#set').insertAdjacentHTML('afterbegin',injuryCard());$('#set').insertAdjacentHTML('afterbegin',accountCard());$('#set').insertAdjacentHTML('beforeend',icuCard());bindAccount();bindIcu();bindInjury()};
+const _renderSet=renderSet;renderSet=function(){_renderSet();$('#set').insertAdjacentHTML('afterbegin',noSwimCard());$('#set').insertAdjacentHTML('afterbegin',injuryCard());$('#set').insertAdjacentHTML('afterbegin',accountCard());$('#set').insertAdjacentHTML('beforeend',icuCard());bindAccount();bindIcu();bindInjury();bindNoSwim()};
 /* Login-Bildschirm */
 function showLogin(msg){const old=document.getElementById('login');if(old)old.remove();const h=document.createElement('div');h.id='login';h.className='wiz';
   h.innerHTML=`<div class="wiz-in"><h1>Saisonplan</h1><p>Dein Trainingsplan für Triathlon, Laufen und Rennrad. Melde dich an, damit dein Plan auf allen Geräten gespeichert ist.</p>
